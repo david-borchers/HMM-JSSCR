@@ -1,4 +1,5 @@
 library(secr)
+library(fields)
 
 # set detector type
 # detype="multi"
@@ -53,10 +54,10 @@ est=optim(pars,scr.negloglik, capthist=capthist, mesh=mesh, dist=dist, control=l
 screst=secr.fit(capthist,mask=mesh,detectfn="HHN",model=list(lambda0~1)) # do secr fit for comparison
 screst;exp(est$par);exp(pars["D"]) # compare our estimates to those from secr (and true density)
 
-# single-occasion capture history:
-est1=optim(pars,scr.negloglik, capthist=capthist1, mesh=mesh, dist=dist, control=list(trace=5))
-screst1=secr.fit(capthist1,mask=mesh,detectfn="HHN",model=list(lambda0~1)) # do secr fit for comparison
-screst1;exp(est1$par);exp(pars["D"]) # compare our estimates to those from secr (and true density)
+## single-occasion capture history:
+#est1=optim(pars,scr.negloglik, capthist=capthist1, mesh=mesh, dist=dist, control=list(trace=5))
+#screst1=secr.fit(capthist1,mask=mesh,detectfn="HHN",model=list(lambda0~1)) # do secr fit for comparison
+#screst1;exp(est1$par);exp(pars["D"]) # compare our estimates to those from secr (and true density)
 
 # Plot some stuff to see if it makes sense:
 plot.p..(capthist,mesh,est$par,dist)

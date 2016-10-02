@@ -70,12 +70,14 @@ calc.p.Pis=function(capthist, mesh, pars, dist) {
     er <- g0 * exp(-dist^2 / 2 / sigma^2) # Poisson encounter rate at all M distances from each detector
     
     # probability of being caught at least once if at mesh vertex s of M
-    p..s <- 1 - exp(- apply(er * dim(capthist)[2],2,sum))
+    p.ts <- 1 - exp(- apply(er,2,sum)) # over a single occasion
+    p..s <- 1 - exp(- apply(er * dim(capthist)[2],2,sum)) # over all occasions
     
     # calculate log(P_i(s)): nxM matrix
     #comb.capthist=apply(capthist,c(1,3),sum)
     #log.Pi.s = counts1.log.Pi.s(comb.capthist,er)
-    log.Pi.s=counts.log.Pi.s(capthist,er)
+    log.Pit.s=counts.log.Pi.s(capthist,er) # log(P_{it}(s))
+    log.Pi.s = apply(log.Pit.s,c(1,3),sum) # P_i(s) = \sum_t log(P_{it}(s)) over occasions
   }
   # Multi-catch trap
   if (detector(traps(capthist))=="multi") {
@@ -161,12 +163,11 @@ counts.log.Pi.s = function(capthist,er) {
   n=dim(capthist)[1]
   nt=dim(capthist)[2]
   M=dim(er)[2]
-  Log.Pi.s=array(dim=c(nt,n,M))
+  log.Pit.s=array(dim=c(n,nt,M))
   for(i in 1:nt) { # calculate log(P_i(s)) for each occasion:
-    Log.Pi.s[i,,]=count.log.Pi.s(capthist[,i,],er)
+    log.Pit.s[,i,]=count.log.Pi.s(capthist[,i,],er)
   }
-  log.Pi.s = apply(Log.Pi.s,c(2,3),sum) # sum log(P_i(s)) over occasions
-  return(log.Pi.s)
+  return(log.Pit.s)
 }
 
 
