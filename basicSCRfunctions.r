@@ -101,18 +101,25 @@ calc.p.Pis=function(capthist, mesh, pars, dist) {
 
 
 
-# Calucates distances between two sets of coordinates
-# X is a by 2 matrix, Y is b by 2 matrix, output is a by b matrix
+#' @title Calculates distances between two sets of points in the plane
+#' 
+#' @details Calculates distances between points in X and Y, whic are 
+#' 2-column matrices of coordinates (x- and y-coordinates in the two columns).
+#' Returns a matrix with dimensions A=dim(X)[1] and B=dim(Y)[1], containing the distances.
+#' 
+#' @param X is an A by 2 matrix.
+#' @param Y is a B by 2 matrix.
+#'
+#' @references This function written by Murray Efford
+#' 
 distances <- function (X, Y) {
-  ## X and Y are 2-column matrices of coordinates
   onerow <- function (xy) {
-    d <- function(xy2) {
-      sqrt(sum((xy2 - xy)^2))
-    }
+    d <- function(xy2) sqrt(sum((xy2 - xy)^2))
     apply(Y, 1, d)
   }
   t(apply(X, 1, onerow))
 }
+
 
 # MULTI-CATCH detectors (detector(traps(capthist))=="multi")
 # ---------------------
