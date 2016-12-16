@@ -6,7 +6,7 @@
 #' @return Value of negative log-likelihood
 #' 
 #' @param pars Vector of paramters, named "g0", "sigma" and "D".
-#' @param capthist Capture history object, or library \code{secr} class 'capthist.
+#' @param capthist Capture history object, of library \code{secr} class 'capthist.
 #' @param mesh Integration mesh, of library \code{secr} class 'mask': an Mx2 matrix.
 #' @param dist KxM matrix of distances between the K detectors in traps(capthist) and the M mesh points.
 #' 
