@@ -3,7 +3,7 @@
 library(secr)
 library(fields)
 
-sim.scr.pop <- function(g0, sigma, occasions, seed=12345) {
+sim.scr.pop <- function(lambda0, sigma, occasions, seed=123) {
   
   # create the detectors
   detype <- "count"
@@ -22,7 +22,7 @@ sim.scr.pop <- function(g0, sigma, occasions, seed=12345) {
   pop <- sim.popn(D=D, core=mesh, buffer=0, seed=seed)
   
   # multi-occasion capture history
-  capthist <- sim.capthist(dets, popn=pop, detectpar=list(g0=g0,sigma=sigma), 
+  capthist <- sim.capthist(dets, popn=pop, detectpar=list(lambda0=lambda0, sigma=sigma), 
                            detectfn="HHN", noccasions=occasions, nsessions=1, 
                            seed=seed)
   
@@ -32,20 +32,20 @@ sim.scr.pop <- function(g0, sigma, occasions, seed=12345) {
   plot(dets,add=TRUE)
   plot(capthist, border=sigma, tracks=TRUE, gridlines=FALSE,rad=3,add=TRUE)
   
-  return(list(mesh=mesh, capthist=capthist, D=D))
+  return(list(mesh=mesh, capthist=capthist))
   
 }
 
 # simulate an example population
-g0 <- 2 ; sigma <- 20 ; occasions <- 5
-scr.pop <- sim.scr.pop(g0=g0, sigma=sigma, occasions=occasions)
+lambda0 <- 2 ; sigma <- 20 ; occasions <- 5
+scr.pop <- sim.scr.pop(lambda0=lambda0, sigma=sigma, occasions=occasions)
 pop.capthist <- scr.pop$capthist
 mesh <- scr.pop$mesh
 
 # randomly generate survival times with known survival probability
 n <- dim(pop.capthist)[1]
-phi <- 0.45
-set.seed(12345)
+phi <- 0.5
+set.seed(123)
 survival.occ <- rgeom(n, phi)
 
 # thin capture history 
