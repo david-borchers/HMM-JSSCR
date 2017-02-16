@@ -22,9 +22,9 @@ calc.p.Pit.s <- function(capthist, mesh, pars, dist) {
   # Proximity detector with count data
   if (detector(traps(capthist))=="count") {
     # Probabilities for each detector and each mesh point (assumed same at all times)
-    g0 <- exp(pars["g0"])
+    lambda0 <- exp(pars["lambda0"])
     sigma <- exp(pars["sigma"])
-    er <- g0 * exp(-dist**2 / 2 / sigma**2) # Poisson encounter rate at all M distances from each detector
+    er <- lambda0 * exp(-dist**2/(2*sigma**2)) # Poisson encounter rate at all M distances from each detector
     
     # calculate log(P_it(s)): n x nt x M  matrix
     log.Pit.s <- count.log.Pit.s(capthist, er) # log(P_{it}(s))
@@ -71,22 +71,10 @@ count.log.Pit.s <- function(capthist, er) {
 }
 
 # ---------------------
-calc.P.occ.mat <- function(capthist, Pit.s, anim, occ, nmesh) {
-  P <- matrix(nrow=nmesh, ncol=2)
-  P[,1] <- Pit.s[anim, occ,]
-  if (all(capthist[anim, occ,] == 0)) {
-    P[,2] <- 1
-  } else {
-    P[,2] <- 0
-  }
-  return(P)
-}
-
-# ---------------------
 calc.P.mat <- function(capthist, Pit.s, anim, occ, nmesh) {
   P <- matrix(nrow=nmesh, ncol=2)
   P[,1] <- Pit.s[anim, occ,]
-  if (all(capthist[anim,,] == 0)) {
+  if (all(capthist[anim,occ,] == 0)) {
     P[,2] <- 1
   } else {
     P[,2] <- 0
@@ -99,8 +87,6 @@ hmm.negloglike <- function (capthist, mesh, pars, dist) {
   n <- dim(capthist)[1]
   nt <- dim(capthist)[2]
   M <- dim(mesh)[1]
-  a <- rep(attributes(mesh)$area, M) # area of each mesh cell
-  D <- rep(exp(pars["D"]), M) # Density at each mesh point
   phi <- plogis(pars["phi"])
   
   Pi <- matrix(c(1,0), nrow=M, ncol=2, byrow = T)
@@ -110,10 +96,11 @@ hmm.negloglike <- function (capthist, mesh, pars, dist) {
   # Calculate log(P_i(s)) at each mesh point
   Pit.s <- calc.p.Pit.s(capthist, mesh, pars, dist = NULL)
   
-  for (i in 1:n) { # loop over individuals 
+  for (i in 1:n) { # loop over individuals
+    alpha <- Pi * (1/M)
     for (j in 1:nt) { # loop over occasions
       P <- calc.P.mat(capthist, Pit.s, i, j, M)
-      alpha <- (Pi * P) %*% tpm
+      alpha <- (alpha * P) %*% tpm
       lscale <- lscale + log(sum(alpha))
       alpha <- alpha/sum(alpha)
     }
@@ -123,13 +110,24 @@ hmm.negloglike <- function (capthist, mesh, pars, dist) {
 
 # ---------------------
 # Example
-D <- scr.pop$D
-pars <- c(log(g0), log(sigma), log(D), qlogis(phi)) # starting values
-names(pars) <- c("g0","sigma","D", "phi")
-dist <- distances(traps(pop.capthist),mesh) # calculate trap distances 
+dist <- distances(traps(capthist.sim), mesh) # calculate trap distances 
+pars <- c(lambda0=log(lambda0), sigma=log(sigma), phi=qlogis(phi)) # starting values
 
-est <- optim(pars, hmm.negloglike, capthist=pop.capthist, mesh=mesh, dist=dist, control=list(trace=5))
+hmm.negloglike(capthist.sim, mesh, pars, dist)
+est <- optim(pars, hmm.negloglike, capthist=capthist.sim, mesh=mesh, dist=dist, 
+             hessian = T, control=list(trace=5))
+
+# parameter estimates
 plogis(est$par["phi"])
-# true phi = 0.45, estimate phi = 0.788
-# scaling not carried out correctly?
-# calc.P.occ.mat or calc.P.mat?
+exp(est$par["lambda0"])
+exp(est$par["sigma"])
+
+# 95% confidence interval for phi
+H <- est$hessian # Hessian
+vcv <- solve(H) # invert Hessian
+qlogis.phi.ci <- est$par["phi"] + c(-1.96,1.96)*sqrt(vcv[1,1]) # get CI of transformed parameter
+phi.ci <- plogis(qlogis.phi.ci) # back-transform onto the original parameter scale
+phi.ci
+
+
+
