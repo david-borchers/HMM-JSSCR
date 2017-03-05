@@ -14,26 +14,23 @@ distances <- function (X, Y) {
 
 # ---------------------
 # calculates P_it(s) for SCR likelihood calculation.
-calc.p.Pit.s <- function(capthist, mesh, pars, dist, zero) {
+calc.p.Pit.s <- function(capthist, mesh, pars, dist) {
   
   # calculate distances from each detector to each mesh point
   if(is.null(dist)) dist <- distances(traps(capthist), mesh)
   
   # Proximity detector with count data
+  if (detector(traps(capthist))=="count") {
     # Probabilities for each detector and each mesh point (assumed same at all times)
     lambda0 <- exp(pars["lambda0"])
     sigma <- exp(pars["sigma"])
     er <- lambda0 * exp(-dist**2/(2*sigma**2)) # Poisson encounter rate at all M distances from each detector
-    
+  
     # calculate log(P_it(s)): n x nt x M  matrix
-    if (zero == TRUE) {
-      log.Pit.s <- zero.count.log.Pit.s(capthist, er) # log(P_{it}(s))
-    } else {
-      log.Pit.s <- count.log.Pit.s(capthist, er) # log(P_{it}(s))
-    }
+    log.Pit.s <- count.log.Pit.s(capthist, er) # log(P_{it}(s))
+  }
   
   return(exp(log.Pit.s))
-  
 }
 
 # ---------------------
@@ -71,15 +68,6 @@ count.log.Pit.s <- function(capthist, er) {
   return(log.Pit.s)
 }
 
-zero.count.log.Pit.s <- function(capthist, er) {
-  nt=dim(capthist)[1]
-  M=dim(er)[2]
-  row.log.Pit.s <- count.log.Pi.si(capthist[1,], er)
-  log.Pit.s[i,] matrix(rep(row.log.Pit.s, each=nt), nrow=nt)
-  matrix(rep(1:49,each=5),nrow=5)
-  return(log.Pit.s)
-}
-
 # ---------------------
 calc.P.mat <- function(capthist, Pit.s, anim, occ, nmesh) {
   P <- matrix(nrow=nmesh, ncol=2)
@@ -93,20 +81,26 @@ calc.P.mat <- function(capthist, Pit.s, anim, occ, nmesh) {
 }
 
 # ---------------------
-hmm.negloglike <- function (capthist, trueN, mesh, pars, dist) {
+hmm.negloglike <- function (sim.data, pars, trueN, dist) {
+  
+  # capture history and mesh corresponding to simulated data
+  capthist <- sim.data$capthist
+  mesh <- sim.data$mesh
+  zero.capthist <- sim.data$zero.capthist
+  
   n <- dim(capthist)[1]
   nt <- dim(capthist)[2]
-  ntraps<- dim(capthist)[3]
   M <- dim(mesh)[1]
-  zero.capthist <- array(0, dim = c(nt, ntraps))
   phi <- plogis(pars["phi"])
   
+  # stationary distribution (Pi) and transition probability matrix (tpm) for HMM
   Pi <- matrix(c(1,0), nrow=M, ncol=2, byrow = T)
   tpm <- matrix(c(phi, 0, 1-phi, 1) ,nrow=2, ncol=2)
   lscale <- 0
   
+  # individuals detected at least once
   # Calculate log(P_i(s)) at each mesh point
-  Pit.s <- calc.p.Pit.s(capthist, mesh, pars, dist, zero=F)
+  Pit.s <- calc.p.Pit.s(capthist, mesh, pars, dist)
   
   for (i in 1:n) { # loop over individuals
     alpha <- Pi * (1/M)
@@ -118,14 +112,18 @@ hmm.negloglike <- function (capthist, trueN, mesh, pars, dist) {
     }
   }
   
+  # individuals not detected
+  # Calculate log(P_i(s)) at each mesh point
+  zero.Pit.s <- calc.p.Pit.s(zero.capthist, mesh, pars, dist)[1,,]
+  
+  # HMM likelihood for individuals not detected
   alpha <- Pi * (1/M)
-  zero.Pit.s <- calc.p.Pit.s(zero.capthist, mesh, pars, dist, zero=T)
+  P <- matrix(nrow=M, ncol=2)
+  P[,1] <- zero.Pit.s
+  P[,2] <- 1
   for (j in 1:nt) { # loop over occasions
-    P <- matrix(nrow=M, ncol=2)
-    P[,1] <- zero.Pit.s[j,]
-    P[,2] <- 1
     alpha <- (alpha * P) %*% tpm
-    lscale <- lscale + (trueN - n)*log(sum(alpha))
+    lscale <- lscale + (trueN-n)*log(sum(alpha))
     alpha <- alpha/sum(alpha)
   }
   
@@ -134,12 +132,14 @@ hmm.negloglike <- function (capthist, trueN, mesh, pars, dist) {
 
 # ---------------------
 # Example
-dist <- distances(traps(capthist.sim), mesh) # calculate trap distances 
+capthist <- sim$capthist
+mesh <- sim$mesh
+dist <- distances(traps(capthist), mesh) # calculate trap distances 
 pars <- c(lambda0=log(lambda0), sigma=log(sigma), phi=qlogis(phi)) # starting values
 
-hmm.negloglike(capthist.sim, trueN=500, mesh, pars, dist)
-est <- optim(pars, hmm.negloglike, capthist=capthist.sim, trueN=500, 
-             mesh=mesh, dist=dist, hessian = T, control=list(trace=1))
+hmm.negloglike(sim, pars, trueN=500, dist)
+est <- optim(pars, hmm.negloglike, sim.data=sim, trueN=500, dist=dist, 
+             hessian = T, control=list(trace=1))
 
 # parameter estimates
 plogis(est$par["phi"])
